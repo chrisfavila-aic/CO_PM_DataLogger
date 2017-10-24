@@ -18,11 +18,11 @@ conditions, respectively (refer to PM3003 manual).
 #include "RTClib.h"
 
 /*Global variables*/
-SoftwareSerial mySerial(7, 8); // RX, TX - serial port connected to PM sensor
+SoftwareSerial PMSerial(7, 8); // RX, TX - serial port connected to PM sensor
 RTC_PCF8523 rtc;
-File myFile;
+File logFile;
 const char* FILENAME = "LOG.CSV";
-int sensorValue;
+int CO_Output;
 byte STARTBYTE = 0x42; //start byte of PM3003 sensor
 int PMPACKETLENGTH = 24; //length of data packet from PM3003
 int CSPIN = 10; //SD CS Pin
@@ -55,15 +55,15 @@ void setup() {
   }
 
   // set the data rate for the SoftwareSerial port
-  mySerial.begin(BAUDRATE);
-  while (!mySerial) {
+  PMSerial.begin(BAUDRATE);
+  while (!PMSerial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
   //flush serial ports
   if (DEBUG)
     Serial.flush();
-  mySerial.flush();
+  PMSerial.flush();
 
   //check SD
   if (!SD.begin(CSPIN)) {
@@ -111,10 +111,10 @@ String getTime(){
 //get analog voltage output from CO sensor (Adafruit MQ7).
 String getCO(){
   
-  sensorValue = analogRead(A0);
+  CO_Output = analogRead(A0);
   
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-  float voltage = sensorValue * (5.0 / 1023.0);
+  float voltage = CO_Output * (5.0 / 1023.0);
 
   if (DEBUG)
     Serial.println("CO sensor voltage: " + String(voltage));
@@ -130,10 +130,10 @@ String getPM(char delimiter) {
   String PM = "";
   
   while (count < PMPACKETLENGTH - 1){
-    if(mySerial.available()){
+    if(PMSerial.available()){
       //get bytes 3 to 14 (data bytes from PM3003, refer to manual)
       if(count >= 3 && count <= 14){
-        PM.concat(String(mySerial.read(), HEX));
+        PM.concat(String(PMSerial.read(), HEX));
 
         //separate every 2 bytes
         if(count % 2 == 0)
@@ -141,7 +141,7 @@ String getPM(char delimiter) {
         
         count++;
       }else{
-        mySerial.read();
+        PMSerial.read();
         count++;
       }
     }
@@ -160,30 +160,30 @@ void loop(){
   //flush serial ports
   if (DEBUG)
     Serial.flush();
-  mySerial.flush();
+  PMSerial.flush();
 
   //open file for writing
-  if (!myFile)
-    myFile = SD.open(FILENAME, FILE_WRITE);
+  if (!logFile)
+    logFile = SD.open(FILENAME, FILE_WRITE);
 
   //get CO reading
-  myFile.print(getCO() + DELIMITER);
+  logFile.print(getCO() + DELIMITER);
 
   //wait for start byte from PM sensor then get data packets
   while(1){
-    if (mySerial.available()){
-      if (mySerial.read() == STARTBYTE){
-        myFile.print(getPM(DELIMITER));
+    if (PMSerial.available()){
+      if (PMSerial.read() == STARTBYTE){
+        logFile.print(getPM(DELIMITER));
         break;
       }
     }
   }
 
   //get time from RTC
-  myFile.println(getTime());
+  logFile.println(getTime());
 
   //close file
-  myFile.close();
+  logFile.close();
 
   //pause before getting next measurement
   delay(TIME_INTERVAL);
