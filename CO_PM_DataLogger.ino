@@ -5,7 +5,7 @@ with an Adafruit Ultimate GPS Logger Shield to get timestamps and to have SD car
 logging functionality. Readings are written in a CSV file with the following
 format per line:
 
-CO, PM1_CF1, PM2.5_CF1, PM10_CF1, PM1_ATM, PM2.5_ATM, PM10_ATM, TIMESTAMP
+CO, PM1_CF1, PM2.5_CF1, PM10_CF1, PM1_ATM, PM2.5_ATM, PM10_ATM, TIMESTAMP, LAT, LONG, ALT
 
 where CF1 and ATM refers to PM readings at CF=1 and under atmospheric
 conditions, respectively (refer to PM3003 manual).
@@ -22,7 +22,6 @@ Adafruit_GPS GPS(&GPS_Serial);
 SoftwareSerial PM_Serial(3, 2); // RX, TX - serial port connected to PM Sensor
 File logFile;
 const char* FILENAME = "LOG.CSV";
-int CO_Output;
 byte STARTBYTE = 0x42; //start byte of PM3003 sensor
 int PMPACKETLENGTH = 24; //length of data packet from PM3003
 int CSPIN = 10; //SD CS Pin
@@ -101,10 +100,39 @@ String getTime(){
   return timestamp;
 }
 
+//gets coordinates from GPS (format: lat,long)
+String getCoordinates(){
+
+  String coordinates = "";
+
+  coordinates.concat(GPS.latitude);
+  coordinates.concat(GPS.longitude);
+
+  if (DEBUG)
+    Serial.println("coordinates: " + coordinates);
+  
+  return coordinates;
+}
+
+//gets altitude from GPS (format: lat,long)
+String getAltitude(){
+
+  String altitude = "";
+
+  altitude.concat(GPS.altitude / 100.0);
+
+  if (DEBUG)
+    Serial.println("altitude: " + altitude);
+  
+  return altitude;
+}
+
 
 //get analog voltage output from CO sensor (Adafruit MQ7).
 String getCO(){
   
+  int CO_Output;
+
   CO_Output = analogRead(A0);
   
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
@@ -190,7 +218,13 @@ void loop(){
   }
 
   //get time from GPS
-  logFile.println(getTime());
+  logFile.print(getTime() + DELIMITER);
+
+    //get coordinates from GPS
+  logFile.print(getCoordinates() + DELIMITER);
+
+    //get altitude from GPS
+  logFile.println(getAltitude());
 
   //close file
   logFile.close();
