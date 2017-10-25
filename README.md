@@ -5,7 +5,7 @@ with an Adafruit Ultimate GPS Logger Shield to get timestamps and to have SD car
 logging functionality. Readings are written in a CSV file with the following
 format per line:
 
-`CO, PM1_CF1, PM2.5_CF1, PM10_CF1, PM1_ATM, PM2.5_ATM, PM10_ATM, TIMESTAMP`
+`CO, PM1_CF1, PM2.5_CF1, PM10_CF1, PM1_ATM, PM2.5_ATM, PM10_ATM, TIMESTAMP, LAT, LONG, ALT`
 
 where CF1 and ATM refers to PM readings at CF=1 and under atmospheric
 conditions, respectively (refer to PM3003 manual).
