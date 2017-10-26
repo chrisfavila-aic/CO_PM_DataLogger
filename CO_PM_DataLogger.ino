@@ -104,9 +104,14 @@ String getTime(){
 String getCoordinates(){
 
   String coordinates = "";
-
-  coordinates.concat(GPS.latitude);
-  coordinates.concat(GPS.longitude);
+  
+  if (GPS.fix){
+    coordinates.concat(GPS.latitude);
+    coordinates.concat(DELIMITER);
+    coordinates.concat(GPS.longitude);
+  }else {
+    coordinates.concat("nf,nf");
+  }
 
   if (DEBUG)
     Serial.println("coordinates: " + coordinates);
@@ -118,8 +123,12 @@ String getCoordinates(){
 String getAltitude(){
 
   String altitude = "";
-
-  altitude.concat(GPS.altitude / 100.0);
+  
+  if (GPS.fix){
+    altitude.concat(GPS.altitude / 100.0);
+  }else{
+    altitude.concat("nf");
+  }
 
   if (DEBUG)
     Serial.println("altitude: " + altitude);
@@ -220,10 +229,10 @@ void loop(){
   //get time from GPS
   logFile.print(getTime() + DELIMITER);
 
-    //get coordinates from GPS
+  //get coordinates from GPS
   logFile.print(getCoordinates() + DELIMITER);
 
-    //get altitude from GPS
+  //get altitude from GPS
   logFile.println(getAltitude());
 
   //close file
