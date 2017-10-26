@@ -5,21 +5,23 @@ with an Adafruit Ultimate GPS Logger Shield to get timestamps and to have SD car
 logging functionality. Readings are written in a CSV file with the following
 format per line:
 
-CO, PM1_CF1, PM2.5_CF1, PM10_CF1, PM1_ATM, PM2.5_ATM, PM10_ATM, TIMESTAMP, LAT, LONG, ALT
+CO, TEMP, HUM, PM1_CF1, PM2.5_CF1, PM10_CF1, PM1_ATM, PM2.5_ATM, PM10_ATM, TIMESTAMP, LAT, LONG, ALT
 
 where CF1 and ATM refers to PM readings at CF=1 and under atmospheric
 conditions, respectively (refer to PM3003 manual).
 */
 
-#include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
 #include <SPI.h>
 #include <SD.h>
+#include <Wire.h>
+#include <Adafruit_GPS.h>
+#include "Adafruit_HTU21DF.h"
 
 /*Global variables*/
 SoftwareSerial GPS_Serial(8, 7); // RX, TX - serial port connected to GPS Module
-Adafruit_GPS GPS(&GPS_Serial);
 SoftwareSerial PM_Serial(3, 2); // RX, TX - serial port connected to PM Sensor
+Adafruit_GPS GPS(&GPS_Serial);
 File logFile;
 const char* FILENAME = "LOG.CSV";
 byte STARTBYTE = 0x42; //start byte of PM3003 sensor
@@ -28,8 +30,9 @@ int CSPIN = 10; //SD CS Pin
 int BAUDRATE = 9600;
 char DELIMITER = ',';
 int TIME_INTERVAL = 5000; //interval between measurements in milliseconds
-bool DEBUG = true; //switch to true when USB serial port output is needed. false otherwise.
+bool DEBUG = false; //switch to true when USB serial port output is needed. false otherwise.
 
+Adafruit_HTU21DF htu = Adafruit_HTU21DF();
 
 void setup() {
 
@@ -66,6 +69,11 @@ void setup() {
     return;
   }
 
+  if (!htu.begin()) {
+    if (DEBUG)
+      Serial.println("Couldn't find sensor!");
+  }
+
 }
 
 
@@ -75,7 +83,9 @@ String formatTimeUnit(int timeUnit){
   String formattedTimeUnit = String(timeUnit, DEC);
   
   if (timeUnit < 10){
-    formattedTimeUnit = "0" + formattedTimeUnit;
+    formattedTimeUnit.remove(0);
+    formattedTimeUnit.concat('0');
+    formattedTimeUnit.concat(String(timeUnit, DEC));
   }
 
   return formattedTimeUnit;
@@ -104,7 +114,8 @@ String getTime(){
 String getCoordinates(){
 
   String coordinates = "";
-  
+
+  //check if GPS locked. if not, just put "nf"(no fix)
   if (GPS.fix){
     coordinates.concat(GPS.latitude);
     coordinates.concat(DELIMITER);
@@ -123,7 +134,8 @@ String getCoordinates(){
 String getAltitude(){
 
   String altitude = "";
-  
+
+  //check if GPS locked. if not, just put "nf"(no fix)
   if (GPS.fix){
     altitude.concat(GPS.altitude / 100.0);
   }else{
@@ -136,21 +148,40 @@ String getAltitude(){
   return altitude;
 }
 
+float getTemperature(){
+  float temperature = htu.readTemperature();
+
+  if (DEBUG){
+    Serial.print("temperature: ");
+    Serial.println(temperature);
+  }
+
+  return temperature;
+}
+
+float getHumidity(){
+  float humidity = htu.readHumidity();
+
+  if (DEBUG){
+    Serial.print("humidity: ");
+    Serial.println(humidity);
+  }
+
+  return humidity;
+}
+
 
 //get analog voltage output from CO sensor (Adafruit MQ7).
-String getCO(){
+int getCO(){
   
   int CO_Output;
 
   CO_Output = analogRead(A0);
-  
-  // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-  float voltage = CO_Output * (5.0 / 1023.0);
 
   if (DEBUG)
-    Serial.println("CO sensor voltage: " + String(voltage));
+    Serial.println("CO output: " + String(CO_Output));
   
-  return String(voltage);
+  return CO_Output;
 }
 
 
@@ -198,7 +229,16 @@ void loop(){
     logFile = SD.open(FILENAME, FILE_WRITE);
 
   //get CO reading
-  logFile.print(getCO() + DELIMITER);
+  logFile.print(getCO());
+  logFile.print(DELIMITER);
+
+  //get temperature
+  logFile.print(getTemperature());
+  logFile.print(DELIMITER);
+
+  //get humidity
+  logFile.print(getHumidity());
+  logFile.print(DELIMITER);
 
   //activate PM serial port
   PM_Serial.listen();
@@ -227,10 +267,12 @@ void loop(){
   }
 
   //get time from GPS
-  logFile.print(getTime() + DELIMITER);
+  logFile.print(getTime());
+  logFile.print(DELIMITER);
 
   //get coordinates from GPS
-  logFile.print(getCoordinates() + DELIMITER);
+  logFile.print(getCoordinates());
+  logFile.print(DELIMITER);
 
   //get altitude from GPS
   logFile.println(getAltitude());
