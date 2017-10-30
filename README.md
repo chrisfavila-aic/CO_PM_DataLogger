@@ -1,4 +1,4 @@
-# PM and CO Data Logger
+# CO and PM Data Logger
 This sketch gets readings from an DFRobot MQ7 Carbon Monoxide Sensor 
 and Plantower PM3003 Particulate Matter Sensor. An Arduino Uno R3 is used
 with an Adafruit Ultimate GPS Logger Shield to get timestamps and to have SD card 
